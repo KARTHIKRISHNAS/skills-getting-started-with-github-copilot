@@ -21,8 +21,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const spotsLeft = details.max_participants - details.participants.length;
 
         const participantsList = details.participants.length > 0
-          ? details.participants.map(p => `<li>${p}</li>`).join("")
-          : "<li><em>No participants yet</em></li>";
+          ? details.participants.map(p => `
+            <li class="participant-item">
+              <span class="participant-email">${p}</span>
+              <button class="delete-participant" data-activity="${encodeURIComponent(name)}" data-email="${encodeURIComponent(p)}" title="Remove participant">✖</button>
+            </li>
+          `).join("")
+          : "<li class='participant-item'><em>No participants yet</em></li>";
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -88,6 +93,41 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
+    }
+  });
+
+  // Event delegation: handle participant deletion
+  activitiesList.addEventListener("click", async (e) => {
+    const btn = e.target.closest('.delete-participant');
+    if (!btn) return;
+
+    const activity = decodeURIComponent(btn.dataset.activity);
+    const email = decodeURIComponent(btn.dataset.email);
+
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activity)}/participants?email=${encodeURIComponent(email)}`,
+        { method: 'DELETE' }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // remove the list item from DOM
+        const li = btn.closest('li');
+        if (li) li.remove();
+      } else {
+        messageDiv.textContent = result.detail || result.message || 'Failed to remove participant';
+        messageDiv.className = 'error';
+        messageDiv.classList.remove('hidden');
+        setTimeout(() => messageDiv.classList.add('hidden'), 4000);
+      }
+    } catch (error) {
+      console.error('Error removing participant:', error);
+      messageDiv.textContent = 'Network error. Please try again.';
+      messageDiv.className = 'error';
+      messageDiv.classList.remove('hidden');
+      setTimeout(() => messageDiv.classList.add('hidden'), 4000);
     }
   });
 
